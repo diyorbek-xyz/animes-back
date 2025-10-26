@@ -16,7 +16,7 @@ const router = Router();
 router.get('/signup', (req, res) => res.render('users/signup', { layout: 'login' }));
 router.get('/login', (req, res) => res.render('users/login', { layout: 'login' }));
 
-router.get('/accounts', verifyToken, permit('admin'), async (req, res) => {
+router.get('/accounts', verifyToken, permit('admin', 'creator'), async (req, res) => {
 	try {
 		if (req.query.id) {
 			const data = await LoginModel.findById(req.query.id).select('-password -__v').lean();
@@ -61,7 +61,7 @@ router.post('/login', async (req, res) => {
 	const token = jwt.sign({ id: user._id, role: user.role }, process.env.SECRET);
 
 	res.cookie('token', token);
-	response({ redirect: '/me', req, res, data: { token, user } });
+	response({ redirect: '/account', req, res, data: { token, user } });
 });
 
 router.get('/logout', (req, res) => {
@@ -69,22 +69,12 @@ router.get('/logout', (req, res) => {
 	response({ redirect: '/login', req, res });
 });
 
-router.delete('/account', verifyToken, permit('admin'), async (req, res) => {
-	try {
-		if (req.query.id !== req.user.id) {
-			const data = await LoginModel.findById(req.query.id);
+router.get('/account', verifyToken, async (req, res) => {
+	const user = await LoginModel.findById(req.user.id).select('-password -__v -role -_id').lean();
 
-			if (data.avatar) await fs.unlink(data.avatar);
-			if (data.banner) await fs.unlink(data.banner);
-
-			await LoginModel.findByIdAndDelete(req.query.id);
-			return response({ req, res, redirect: '/accounts' });
-		}
-		return response({ req, res, data: { message: 'You can not delete yourself' }, redirect: '/accounts' });
-	} catch (err) {
-		res.status(404).json({ message: 'Error', err });
-	}
+	response({ req, res, render: 'users/dashboard', data: user, name: 'dashboard' });
 });
+
 router.put(
 	'/account',
 	verifyToken,
@@ -135,10 +125,21 @@ router.put(
 	}
 );
 
-router.get('/account', verifyToken, async (req, res) => {
-	const user = await LoginModel.findById(req.user.id).select('-password -__v -role -_id').lean();
-	
-	response({ req, res, render: 'users/dashboard', data: user });
+router.delete('/account', verifyToken, permit('admin', 'creator'), async (req, res) => {
+	try {
+		if (req.query.id !== req.user.id) {
+			const data = await LoginModel.findById(req.query.id);
+
+			if (data.avatar) await fs.unlink(data.avatar);
+			if (data.banner) await fs.unlink(data.banner);
+
+			await LoginModel.findByIdAndDelete(req.query.id);
+			return response({ req, res, redirect: '/accounts' });
+		}
+		return response({ req, res, data: { message: 'You can not delete yourself' }, redirect: '/accounts' });
+	} catch (err) {
+		res.status(404).json({ message: 'Error', err });
+	}
 });
 
 module.exports = router;
