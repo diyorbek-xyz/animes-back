@@ -1,5 +1,3 @@
-/** @format */
-
 require('dotenv').config();
 const { default: chalk } = require('chalk');
 const { default: mongoose } = require('mongoose');
