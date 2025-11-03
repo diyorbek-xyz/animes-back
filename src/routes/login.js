@@ -52,7 +52,6 @@ router.post('/signup', async (req, res) => {
 router.post('/login', async (req, res) => {
 	
 	const { username, password } = req.body;
-
 	const user = await LoginModel.findOne({ username: username.toLowerCase() });
 	if (!user) return res.status(404).json({ message: 'User Not Found' });
 
