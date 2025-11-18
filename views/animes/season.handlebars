@@ -1,0 +1,56 @@
+<header id='header'>
+	<button popovertarget='create-account' popovertargetaction='toggle'>Add</button>
+</header>
+
+<article id='animes'>
+	{{#each season.season}}
+		<article class='anime' data-index='{{@index}}'>
+			<img src='/{{poster}}' alt='{{anime}}' width='100%' style='border-radius: inherit;' />
+			<div style='display: grid;'>
+				<div class='label'>
+					<span class='title'>Poster path:</span>
+					<a class='value path' href='/{{poster}}' rel='external'>{{poster}}</a>
+				</div>
+				<div class='label'>
+					<span class='title'>Title:</span>
+					<span class='value'>{{title}}</span>
+				</div>
+				<div class='label'>
+					<span class='title'>Season:</span>
+					<span class='value'>{{season}}</span>
+				</div>
+				<div class='label'>
+					<span class='title'>Created:</span>
+					<span class='value'>{{date createdAt}}</span>
+				</div>
+				<div class='label'>
+					<span class='title'>Updated:</span>
+					<span class='value'>{{date updatedAt}}</span>
+				</div>
+				<div>
+					<form action='/api/anime/season?id={{_id}}&_method=DELETE' method='post'>
+						<input type='submit' value='Delete' />
+					</form>
+				</div>
+				<pre class='json'>{{json this}}</pre>
+			</div>
+		</article>
+	{{/each}}
+	<article id='create-account' class='popover' popover='hint'>
+		<fieldset>
+			<legend>Create</legend>
+
+			<form action='/api/anime/season?_method=POST' enctype='multipart/form-data' method='post'>
+				<select name='anime' required>
+					{{#each season.anime}}
+						<option value='{{_id}}'>{{name}}</option>
+					{{/each}}
+				</select>
+				<input type='text' name='title' placeholder='Enter Title' required />
+				<input type='text' name='season' placeholder='Enter season' required />
+				<input type='file' name='poster' placeholder='Enter poster' required />
+				<input type='submit' value='Create Season' popovertargetaction='hide' />
+			</form>
+		</fieldset>
+	</article>
+</article>

@@ -4,17 +4,25 @@
 		<link rel='stylesheet' href='/index.css' />
 	</head>
 	<body>
-		<div id="root">
+		<div id='root'>
 			<aside>
 				<a href='/' class='click'>AmediaTv</a>
 				<a href='/accounts' class='click'>Users</a>
-				<a href='/api/animes' class='click'>Animes</a>
+				<a href='/api/anime' class='click'>Animes</a>
+				<a href='/api/anime/season' class='click'>Seasons</a>
+				<details>
+					<summary class="click">Collections</summary>
+					<ol style='list-style-position: inside;'>
+						<li class='click'><a href='/collection/accounts'>Accounts</a></li>
+						<li class='click'><a href='/collection/animes'>Animes</a></li>
+						<li class='click'><a href='/collection/seasons'>Seasons</a></li>
+						<li class='click'><a href='/collection/episodes'>Episodes</a></li>
+					</ol>
+				</details>
 			</aside>
 			<nav>
 				<a href='/'>AmediaTv</a>
-				<ul>
-					<li><a class='click' href='/account'>Account</a></li>
-				</ul>
+				<a class='click' href='/account'>Account</a></li>
 			</nav>
 			<main>
 				{{body}}
@@ -22,25 +30,18 @@
 		</div>
 		<script>
 			const jsonOutput = document.getElementsByClassName('json');
-			for (let element of jsonOutput) {
-				element.addEventListener("mousemove", (e) => {
-					element.scrollLeft = (e.offsetX * 2 - 100) / element.scrollWidth * 400;
-					element.scrollTop =  (e.offsetY * 2 - 100) / element.scrollHeight * 400;
-				})
-				highlightJson(element);
-			}
+			for (let element of jsonOutput) highlightJson(element); 
 			function highlightJson(element) {
 				const text = element.innerText;
 				let highlightedText = text
 					.replace(/"([^"]+)":/g, "<span class=\'json-key\'>$1</span>:")
 					.replace(/"([^"]*)"/g, '<span class=\'json-string\'>$&</span>')
-					.replace(/\b(true|false)\b/g, '<span class=\'json-boolean\'>$&</span>')	
+					.replace(/\b(true|false)\b/g, '<span class=\'json-boolean\'>$&</span>')
 					.replace(/\bnull\b/g, '<span class=\'json-null\'>$&</span>')
 					.replace(/(?<![\/\w-])\d+(?:\.\d+)?(?:[eE][+-]?\d+)?(?![\/\w-])/g, '<span class=\'json-number\'>$&</span>')
-					.replace(/([\{\}\[\]:,])/g, '<span class=\'json-punctuation\'>$&</span>');
-				console.log((/(\b\d+(\.\d+)?([eE][+-]?\d+)?\b)/g))
+					.replace(/([\{\}\[\]:,])/g, '<span class=\'json-punctuation\'>$&</span>')
 				element.innerHTML = highlightedText;
-			}
+			};
 		</script>
 	</body>
 </html>

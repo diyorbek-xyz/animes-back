@@ -177,7 +177,32 @@ select {
 	padding: 2px;
 	font-size: medium;
 	width: 100%;
+	margin: 0 !important;
 }
+summary {
+	user-select: none;
+}
+details {
+	margin: 0;
+	padding: 0;
+}
+
+li {
+	padding-left: 30px !important;
+	display: flex !important;
+	align-items: center;
+	justify-content: start;
+	position: relative;
+	&::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		left: 20px;
+		width: 1px;
+		background-color: #888;
+	}
+}
+
 .popover {
 	left: 50%;
 	top: 50%;
@@ -214,7 +239,8 @@ select {
 			justify-content: space-between;
 			& .value.path {
 				font-style: italic;
-				font-size: large;
+				font-size: x-small;
+				max-width: 250px;
 				color: blue;
 				&:hover {
 					text-decoration: underline;
@@ -234,7 +260,10 @@ select {
 	border: none;
 	outline: none;
 	font-weight: bold;
-	user-select: none;
+	cursor: text;
+	&::selection {
+		background-color: blue;
+	}
 	&::-webkit-scrollbar {
 		height: 1px;
 		width: 1px;
@@ -250,21 +279,45 @@ select {
 	}
 	& .json-key {
 		color: #aa6f00;
+		&::selection {
+			color: #5effff;
+			background-color: blue;
+		}
 	}
 	& .json-string {
 		color: #b93b00;
+		&::selection {
+			color: #26ff00;
+			background-color: blue;
+		}
 	}
 	& .json-number {
 		color: #00628f;
+		&::selection {
+			color: #fbf700;
+			background-color: blue;
+		}
 	}
 	& .json-boolean {
 		color: #c300ff;
+		&::selection {
+			color: #ff0000;
+			background-color: blue;
+		}
 	}
 	& .json-null {
 		color: #00292e;
+		&::selection {
+			color: #ffffff;
+			background-color: blue;
+		}
 	}
 	& .json-punctuation {
 		color: #050035;
+		&::selection {
+			color: #f87eee;
+			background-color: blue;
+		}
 	}
 }
 .link {
@@ -306,9 +359,21 @@ select {
 		& > label {
 			display: flex;
 			justify-content: space-between;
-			& > input{
+			& > input {
 				width: 300px;
 			}
 		}
+	}
+}
+.click {
+	cursor: pointer;
+	display: block;
+	padding: 10px;
+	&:hover {
+		text-decoration: underline;
+		background-color: #444444;
+	}
+	&:active {
+		text-decoration: none;
 	}
 }

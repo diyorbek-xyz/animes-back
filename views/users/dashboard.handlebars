@@ -1,4 +1,4 @@
-<form id='dashboard' action='/account&_method=PUT' enctype="multipart/form-data" method='post'>
+<form id='dashboard' action='/account?_method=PUT' enctype="multipart/form-data" method='post'>
 	<img class='avatar' src={{dashboard.avatar}} height="300px"/>
 	<img class='banner' src={{dashboard.banner}} />
 	<div>
@@ -9,9 +9,9 @@
 		<label>Last name: <input type='text' name='last_name' value={{dashboard.last_name}} /></label>
 		<div style='display: flex; gap: 10px;'>
 			<a class='link'>
-				<button class='click' href='/logout'>Log Out</button>
+				<button href='/logout'>Log Out</button>
 			</a>
-			<input type='submit' class='click' value='Save' />
+			<input type='submit' value='Save' />
 		</div>
 	</div>
 </form>

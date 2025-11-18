@@ -1,17 +1,17 @@
-<form id='dashboard' action='/account&_method=PUT' enctype="multipart/form-data" method='post'>
+<form id='dashboard' action='/account?_method=PUT' enctype="multipart/form-data" method='put'>
 	<img class='avatar' src={{account.avatar}} height="300px"/>
 	<img class='banner' src={{account.banner}} />
 	<div>
-		<label>Avatar: <input type='file' name='avatar' value={{account.avatar}} /></label>
+		<label>AvatarD: <input type='file' name='avatar' value={{account.avatar}} /></label>
 		<label>Banner: <input type='file' name='banner' value={{account.banner}} /></label>
 		<label>Username: <input type='text' name='username' value={{account.username}} /></label>
 		<label>First name: <input type='text' name='first_name' value={{account.first_name}} /></label>
 		<label>Last name: <input type='text' name='last_name' value={{account.last_name}} /></label>
 		<div style='display: flex; gap: 10px;'>
 			<a class='link'>
-				<button class='click' href='/logout'>Log Out</button>
+				<button href='/logout'>Log Out</button>
 			</a>
-			<input type='submit' class='click' value='Save' />
+			<input type='submit' value='Save' />
 		</div>
 	</div>
 </form>
