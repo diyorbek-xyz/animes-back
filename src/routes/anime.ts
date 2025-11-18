@@ -8,6 +8,9 @@ import chalk from 'chalk';
 import upload from '../middlewares/upload';
 import processVideo from '../middlewares/process_video';
 import mongoose from 'mongoose';
+import fs from 'fs';
+import addPoster from '../middlewares/add_poster';
+import { CleanAfterError } from '../utils/cleanup';
 
 const router = Router();
 
@@ -19,51 +22,40 @@ router.get('/', verifyToken, async (req: Request, res: Response) => {
 			const anime = await AnimeModel.findOne({ anime: req.query.anime }).populate('seasons').lean();
 			res.json(anime);
 		} else {
-			const data = await AnimeModel.find().populate('seasons',"poster title season").lean();
+			const data = await AnimeModel.find().populate('seasons', 'poster title season').lean();
 			response({ req, res, data, render: 'animes/anime', name: 'anime' });
 		}
-	} catch (err) {
-		if (err instanceof HttpError) {
-			console.error(chalk.red(err.message));
-			res.json({ error: err.message }).status(err.status);
-		} else {
-			console.error(chalk.red(err));
-			res.json({ error: err }).status(500);
-		}
+	} catch (error) {
+		await CleanAfterError({ error, req, res });
 	}
 });
 router.delete('/', verifyToken, async (req: Request, res: Response) => {
 	try {
 		const id = req.query.id ?? req.body.id;
-		console.log(id);
 
-		await AnimeModel.findByIdAndDelete(id);
+		const data = await AnimeModel.findByIdAndDelete(id);
+
+		if (data.poster) fs.unlinkSync(data.poster);
+
 		res.json({ message: 'Succesfully deleted: ' + id });
-	} catch (err) {
-		if (err instanceof HttpError) {
-			console.error(chalk.red(err.message));
-			res.json({ error: err.message }).status(err.status);
-		} else {
-			console.error(chalk.red(err));
-			res.json({ error: err }).status(500);
-		}
+	} catch (error) {
+		await CleanAfterError({ error, req, res });
 	}
 });
 
-router.post('/', upload.fields([{ name: 'poster', maxCount: 1 }]), async (req: Request & AnimeFiles, res: Response) => {
+router.post('/', upload.fields([{ name: 'poster', maxCount: 1 }]), addPoster, async (req: Request & AnimeFiles & ProcessFiles, res: Response) => {
 	const session = await mongoose.startSession();
 	session.startTransaction();
 	try {
 		console.log(chalk.blue('Starting create anime...'));
 
 		const data = req.body as Anime;
-		const poster = req.files?.poster?.[0].path;
 
 		if (!data) throw new HttpError(400, 'Request body is empty');
 		const exist = await AnimeModel.findOne({ name: data.name });
 		if (!!exist) throw new HttpError(400, 'This anime already exist');
 
-		const anime = await AnimeModel.create({ ...data, poster });
+		const anime = await AnimeModel.create({ ...data, poster: req.data?.poster });
 
 		if (data.seasons) {
 			await Promise.all(data.seasons.map((season) => SeasonModel.findByIdAndUpdate(season._id, { $set: { anime: anime._id } }, { session })));
@@ -72,16 +64,8 @@ router.post('/', upload.fields([{ name: 'poster', maxCount: 1 }]), async (req: R
 		session.endSession();
 		res.json({ message: 'Succesfully Created', data: anime });
 		console.log(chalk.yellow('Finished create anime.'));
-	} catch (err) {
-		await session.abortTransaction();
-		session.endSession();
-		if (err instanceof HttpError) {
-			console.error(chalk.red(err.message));
-			res.json({ error: err.message }).status(err.status);
-		} else {
-			console.error(chalk.red(err));
-			res.json({ error: err }).status(500);
-		}
+	} catch (error) {
+		await CleanAfterError({ error, req, res, session, file: req.data?.poster });
 	}
 });
 // NOTE: ANIME --> --> --> --> --> --> --> --> --> --> --> --> --> --> --> -->
@@ -97,14 +81,8 @@ router.get('/season', async (req: Request, res: Response) => {
 			const season = await SeasonModel.find().populate('anime', 'name').populate('episodes').lean();
 			response({ req, res, data: { anime: anime, season: season }, render: 'animes/season', name: 'season' });
 		}
-	} catch (err) {
-		if (err instanceof HttpError) {
-			console.error(chalk.red(err.message));
-			res.json({ error: err.message }).status(err.status);
-		} else {
-			console.error(chalk.red(err));
-			res.json({ error: err }).status(500);
-		}
+	} catch (error) {
+		await CleanAfterError({ error, req, res });
 	}
 });
 router.delete('/season', verifyToken, async (req: Request, res: Response) => {
@@ -114,14 +92,8 @@ router.delete('/season', verifyToken, async (req: Request, res: Response) => {
 
 		await SeasonModel.findByIdAndDelete(id);
 		res.json({ message: 'Succesfully deleted: ' + id });
-	} catch (err) {
-		if (err instanceof HttpError) {
-			console.error(chalk.red(err.message));
-			res.json({ error: err.message }).status(err.status);
-		} else {
-			console.error(chalk.red(err));
-			res.json({ error: err }).status(500);
-		}
+	} catch (error) {
+		await CleanAfterError({ error, req, res });
 	}
 });
 router.post('/season', upload.fields([{ name: 'poster', maxCount: 1 }]), async (req: Request & AnimeFiles, res: Response, d) => {
@@ -147,16 +119,8 @@ router.post('/season', upload.fields([{ name: 'poster', maxCount: 1 }]), async (
 		await session.commitTransaction();
 		session.endSession();
 		res.json({ message: 'Succesfully Created', data: season });
-	} catch (err) {
-		await session.abortTransaction();
-		session.endSession();
-		if (err instanceof HttpError) {
-			console.error(chalk.red(err.message));
-			res.json({ error: err.message }).status(err.status);
-		} else {
-			console.error(chalk.red(err));
-			res.json({ error: err }).status(500);
-		}
+	} catch (error) {
+		await CleanAfterError({ error, req, res, session });
 	}
 });
 
@@ -185,16 +149,8 @@ router.post('/episode', upload.fields([{ name: 'file', maxCount: 1 }]), processV
 		await session.commitTransaction();
 		session.endSession();
 		res.json({ message: 'Succesfully Created', data: episode });
-	} catch (err) {
-		await session.abortTransaction();
-		session.endSession();
-		if (err instanceof HttpError) {
-			console.error(chalk.red(err.message));
-			res.json({ error: err.message }).status(err.status);
-		} else {
-			console.error(chalk.red(err));
-			res.json({ error: err }).status(500);
-		}
+	} catch (error) {
+		await CleanAfterError({ error, req, res, session });
 	}
 });
 

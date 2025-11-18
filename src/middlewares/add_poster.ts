@@ -1,5 +1,3 @@
-/** @format */
-
 import { NextFunction, Request, Response } from 'express';
 import { AnimeFiles, ProcessFiles } from '../types';
 import path from 'path';
@@ -11,16 +9,16 @@ async function addPoster(req: Request & AnimeFiles & ProcessFiles, res: Response
 	try {
 		console.log(chalk.blue('Poster adding...'));
 		const file = req.files?.poster?.at(0);
-		if (!file) return res.status(400).json({ message: 'Poster not found' });
+		if (!file) return next();
 
-		const newDir = path.join('uploads', 'animes', req.body.name, req.body.season.toString());
+		const newDir = path.join('uploads', 'animes', req.body.name ?? req.body.anime ?? '', req.body.season?.toString() ?? '');
 		const poster = path.join(newDir, 'poster.png');
 		fs.mkdirSync(newDir, { recursive: true });
 
 		const metadata = `<x:xmpmeta xmlns:x="adobe:ns:meta/">
 							<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
 								<rdf:Description xmlns:dc="http://purl.org/dc/elements/1.1/">
-									<dc:anime>${req.body.name}</dc:anime>
+									<dc:anime>${req.body.name ?? req.body.anime}</dc:anime>
 									<dc:creator>Diyorbek</dc:creator>
 									<dc:telegram>@diyorbek-xyz</dc:telegram>
 									<dc:website>https://amediatv.uz</dc:website>
@@ -29,6 +27,7 @@ async function addPoster(req: Request & AnimeFiles & ProcessFiles, res: Response
 						</x:xmpmeta>`;
 
 		console.info(chalk.blue('Starting poster compression!'));
+
 		await sharp(file.path)
 			.resize({
 				width: 854,
@@ -46,7 +45,8 @@ async function addPoster(req: Request & AnimeFiles & ProcessFiles, res: Response
 		req.data = { poster };
 		next();
 	} catch (err) {
-		res.json(err);
+		res.send(err);
+		console.log(err);
 
 		if (req.files?.poster?.at(0)?.path) {
 			fs.unlinkSync(req.files.poster[0].path);
