@@ -63,7 +63,7 @@ async function processVideo(req: Request, res: Response, next: NextFunction) {
 					'-var_stream_map',
 					varStreamMap,
 
-					`-hls_segment_filename ${outputDir}/datas/data%v_%02d.ts`,
+					`-hls_segment_filename ${outputDir}/datas/data%v_%02d.bruh`,
 					'-hls_base_url datas/',
 				])
 				.output(`${outputDir}/%v.m3u8`)
