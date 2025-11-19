@@ -2,9 +2,14 @@ import chalk from 'chalk';
 import HttpError from './error';
 import fs from 'fs';
 
-export async function CleanAfterError({ req, res, session, error, file }: { req: any; res: any; error: any; session?: any; file?: any }) {
-	if (file) {
-		fs.unlinkSync(file);
+export async function CleanAfterError({ req, res, session, error, file, file_type = 'file' }: { req: any; res: any; error: any; session?: any; file?: any; file_type?: 'dir' | 'file' }) {
+	if (fs.existsSync(file)) {
+		if (file_type == 'dir') {
+			fs.rmdirSync(file);
+		}
+		if (file_type == 'file') {
+			fs.unlinkSync(file);
+		}
 	}
 	if (session) {
 		await session.abortTransaction();

@@ -4,6 +4,7 @@ interface Anime {
 	poster: string;
 	studio: string;
 	seasons?: Season[];
+	episodes?: Episode[];
 }
 interface Season {
 	_id?: any;
@@ -19,6 +20,8 @@ interface Episode {
 	video: string;
 	previews: string;
 	download: string;
+	anime: any;
+	season: any;
 }
 
 interface Login {
@@ -31,32 +34,7 @@ interface Login {
 	avatar: string;
 	banner: string;
 }
-interface ProcessFiles {
-	data?: {
-		poster?: string;
-		video?: string;
-		previews?: string;
-		download?: string;
-	};
-}
-interface VerifyToken {
-	user?: {
-		id: string;
-		role: 'user' | 'admin' | 'creator';
-	};
-}
-interface AnimeFiles {
-	files?: {
-		poster?: Express.Multer.File[];
-		video?: Express.Multer.File[];
-	};
-}
-interface AccountFiles {
-	files?: {
-		avatar?: Express.Multer.File[];
-		banner?: Express.Multer.File[];
-	};
-}
+
 interface User {
 	id: string;
 	role: 'user' | 'admin' | 'creator';
@@ -69,4 +47,4 @@ interface NewEpisode extends Episode {
 	season: string;
 }
 export type { NewEpisode };
-export type { User, Anime, Episode, AnimeFiles, Season, Login, ProcessFiles, VerifyToken, AccountFiles };
+export type { User, Anime, Episode, Season, Login };

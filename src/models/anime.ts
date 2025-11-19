@@ -1,4 +1,4 @@
-import mongoose, { model, models, Schema } from 'mongoose';
+import mongoose, { CallbackError, model, models, Schema } from 'mongoose';
 
 const AnimeSchema = new Schema(
 	{
@@ -7,8 +7,10 @@ const AnimeSchema = new Schema(
 		studio: String,
 		seasons: [{ type: mongoose.Types.ObjectId, ref: 'season' }],
 		episodes: [{ type: mongoose.Types.ObjectId, ref: 'episode' }],
+		totalSeasons: { type: Number, required: true },
+		totalEpisodes: { type: Number, required: true },
 	},
-	{ timestamps: true, versionKey: false }
+	{ timestamps: true, versionKey: false },
 );
 const SeasonSchema = new Schema(
 	{
@@ -17,8 +19,9 @@ const SeasonSchema = new Schema(
 		title: { type: String, required: true },
 		season: { type: Number, required: true },
 		episodes: [{ type: mongoose.Types.ObjectId, ref: 'episode' }],
+		totalEpisodes: { type: Number },
 	},
-	{ timestamps: true, versionKey: false }
+	{ timestamps: true, versionKey: false },
 );
 const EpisodeSchema = new Schema(
 	{
@@ -30,8 +33,61 @@ const EpisodeSchema = new Schema(
 		previews: { type: String, required: true },
 		download: { type: String, required: true },
 	},
-	{ timestamps: true, versionKey: false }
+	{ timestamps: true, versionKey: false },
 );
+
+SeasonSchema.pre('save', function (next) {
+	const doc = this as any;
+	if (doc) {
+		doc.totalEpisodes = doc.episodes.length ?? 0;
+	}
+	next();
+});
+SeasonSchema.post('save', async (doc, next) => {
+	console.log('SEASON CHANGE', doc);
+	try {
+		const anime = await mongoose.model('anime').findByIdAndUpdate(doc.anime, { $addToSet: { seasons: doc._id } });
+		for (const episode of doc.episodes) {
+			await mongoose.model('episode').findByIdAndUpdate(episode, { $addToSet: { season: doc._id, anime: anime._id } });
+		}
+		next();
+	} catch (err) {
+		next(err as CallbackError);
+	}
+});
+AnimeSchema.pre('save', function (next) {
+	const doc = this as any;
+	if (doc) {
+		doc.totalEpisodes = doc.episodes.length ?? 0;
+		doc.totalSeasons = doc.seasons.length ?? 0;
+	}
+	next();
+});
+AnimeSchema.post('save', async (doc, next) => {
+	console.log('ANIME CHANGE', doc);
+	try {
+		for (const season of doc.seasons) {
+			await mongoose.model('season').findByIdAndUpdate(season, { $addToSet: { anime: doc._id } });
+		}
+		for (const episode of doc.episodes) {
+			await mongoose.model('episode').findByIdAndUpdate(episode, { $addToSet: { anime: doc._id } });
+		}
+
+		next();
+	} catch (err) {
+		next(err as CallbackError);
+	}
+});
+EpisodeSchema.post('save', async (doc, next) => {
+	console.log('EPISODE CHANGE', doc);
+	try {
+		await mongoose.model('anime').findByIdAndUpdate(doc.anime, { $addToSet: { episodes: doc._id } });
+		await mongoose.model('season').findByIdAndUpdate(doc.season, { $addToSet: { episodes: doc._id } });
+		next();
+	} catch (err) {
+		next(err as CallbackError);
+	}
+});
 const AnimeModel = models.anime || model('anime', AnimeSchema);
 const SeasonModel = models.season || model('season', SeasonSchema);
 const EpisodeModel = models.episode || model('episode', EpisodeSchema);

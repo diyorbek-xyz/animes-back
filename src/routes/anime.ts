@@ -1,6 +1,6 @@
-import { Request, Response, Router } from 'express';
-import { Anime, AnimeFiles, Episode, ProcessFiles, Season } from '../types';
-import verifyToken from '../middlewares/login';
+import { Router, Request, Response, NextFunction } from 'express';
+import { Anime, Episode, Season } from '../types';
+import { verifyToken } from '../middlewares/verify_access';
 import { response } from '../utils/response';
 import { AnimeModel, EpisodeModel, SeasonModel } from '../models/anime';
 import HttpError from '../utils/error';
@@ -11,6 +11,8 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import addPoster from '../middlewares/add_poster';
 import { CleanAfterError } from '../utils/cleanup';
+import sortFiles from '../middlewares/sort_files';
+import path from 'path';
 
 const router = Router();
 
@@ -43,28 +45,37 @@ router.delete('/', verifyToken, async (req: Request, res: Response) => {
 	}
 });
 
-router.post('/', upload.fields([{ name: 'poster', maxCount: 1 }]), addPoster, async (req: Request & AnimeFiles & ProcessFiles, res: Response) => {
+router.post('/', upload.fields([{ name: 'poster', maxCount: 1 }]), sortFiles, addPoster, async (req: Request, res: Response) => {
 	const session = await mongoose.startSession();
 	session.startTransaction();
 	try {
 		console.log(chalk.blue('Starting create anime...'));
 
-		const data = req.body as Anime;
+		const data = req.body;
 
 		if (!data) throw new HttpError(400, 'Request body is empty');
 		const exist = await AnimeModel.findOne({ name: data.name });
 		if (!!exist) throw new HttpError(400, 'This anime already exist');
 
-		const anime = await AnimeModel.create({ ...data, poster: req.data?.poster });
+		const anime = await AnimeModel.create([{ ...data, poster: req.data?.poster, totalSeasons: data.seasons?.length ?? 0, totalEpisodes: data.episodes?.length ?? 0 }], { session });
 
 		if (data.seasons) {
-			await Promise.all(data.seasons.map((season) => SeasonModel.findByIdAndUpdate(season._id, { $set: { anime: anime._id } }, { session })));
+			for (const season of data.seasons) {
+				await SeasonModel.findByIdAndUpdate(season, { $set: { anime: anime[0]._id } }, { session });
+				if (data.episodes) {
+					for (const episode of data.episodes) {
+						await EpisodeModel.findByIdAndUpdate(episode, { $set: { season: season._id } }, { session });
+					}
+				}
+			}
 		}
 		await session.commitTransaction();
 		session.endSession();
 		res.json({ message: 'Succesfully Created', data: anime });
 		console.log(chalk.yellow('Finished create anime.'));
 	} catch (error) {
+		console.error(error);
+
 		await CleanAfterError({ error, req, res, session, file: req.data?.poster });
 	}
 });
@@ -96,26 +107,17 @@ router.delete('/season', verifyToken, async (req: Request, res: Response) => {
 		await CleanAfterError({ error, req, res });
 	}
 });
-router.post('/season', upload.fields([{ name: 'poster', maxCount: 1 }]), async (req: Request & AnimeFiles, res: Response, d) => {
+router.post('/season', upload.fields([{ name: 'poster', maxCount: 1 }]), sortFiles, addPoster, async (req: Request, res: Response, d) => {
 	const session = await mongoose.startSession();
 	session.startTransaction();
 	try {
 		const data = req.body as Season;
-		const poster = req.files?.poster?.[0].path;
+		const poster = req.data?.poster;
 		let exist = await SeasonModel.findOne({ season: data.season });
 		if (!!exist) throw new HttpError(400, 'This season already exist');
 
-		const season = await SeasonModel.create({ ...data, poster });
+		const season = await SeasonModel.create([{ ...data, poster }], { session });
 
-		console.log(season);
-
-		await AnimeModel.findByIdAndUpdate(season.anime, { $push: { seasons: season._id } });
-		if (data.episodes) {
-			console.log('ITS FALSE BRO');
-
-			await Promise.all(data.episodes.map((episode) => EpisodeModel.findByIdAndUpdate(episode._id, { $set: { season: season._id } })));
-		}
-		console.log('ITS GOOD BRO');
 		await session.commitTransaction();
 		session.endSession();
 		res.json({ message: 'Succesfully Created', data: season });
@@ -127,33 +129,86 @@ router.post('/season', upload.fields([{ name: 'poster', maxCount: 1 }]), async (
 // NOTE: SEASON --> --> --> --> --> --> --> --> --> --> --> --> --> --> --> -->
 
 // BUG: EPISODE --> --> --> --> --> --> --> --> --> --> --> --> --> --> --> -->
-
-router.post('/episode', upload.fields([{ name: 'file', maxCount: 1 }]), processVideo, async (req: Request & ProcessFiles, res: Response) => {
-	const session = await mongoose.startSession();
-	session.startTransaction();
+router.get('/episode', async (req: Request, res: Response) => {
 	try {
-		if (!req.data) throw new HttpError(400, 'Error processing video');
-		const data = req.body as Episode;
-		const exist = await EpisodeModel.findOne({ episode: data.episode });
-		if (!!exist) throw new HttpError(400, 'This episode already exist');
-
-		const episode = await EpisodeModel.create({
-			...data,
-			video: req.data.video,
-			previews: req.data.previews,
-			download: req.data.download,
-		});
-		await AnimeModel.findByIdAndUpdate(episode.anime, { $push: { episodes: episode[0]._id } }, { session });
-		await SeasonModel.findByIdAndUpdate(episode.season, { $push: { episodes: episode[0]._id } }, { session });
-
-		await session.commitTransaction();
-		session.endSession();
-		res.json({ message: 'Succesfully Created', data: episode });
+		if (req.query.season) {
+			const episode = await EpisodeModel.findOne({ season: req.query.season }).populate('anime', 'name').populate('episodes').lean();
+			res.json(episode);
+		} else {
+			const anime = await AnimeModel.find().lean();
+			const season = await SeasonModel.find().lean();
+			const episode = await EpisodeModel.find().populate('anime', 'name').populate('season', 'title poster season').lean();
+			response({ req, res, data: { anime, season, episode }, render: 'animes/episode', name: 'data' });
+		}
 	} catch (error) {
-		await CleanAfterError({ error, req, res, session });
+		await CleanAfterError({ error, req, res });
 	}
 });
+router.post(
+	'/episode',
+	upload.fields([{ name: 'video', maxCount: 1 }]),
+	sortFiles,
+	async (req: Request, res: Response, next: NextFunction) => {
+		const session = await mongoose.startSession();
+		session.startTransaction();
+		try {
+			const data = req.body as Episode;
+			const exist = await EpisodeModel.findOne({ episode: data.episode });
+			if (!!exist) throw new HttpError(400, 'This episode already exist');
+			const inputPath = req.uploads?.video;
+			if (!inputPath) return console.error('Input video not found.');
 
+			const anime = await AnimeModel.findById(data.anime);
+			const season = await SeasonModel.findById(data.season);
+			const outputPath = path.join('uploads', 'animes', anime.name.split(' ').join('_'), season.title.split(' ').join('_'), data.title.split(' ').join('_'));
+			const downloadPath = path.join(outputPath, 'download_' + req.body.episode.toString() + path.extname(inputPath));
+			const videoPath = path.join(outputPath, 'master.m3u8');
+			const previewsPath = path.join(outputPath, 'sprite.vtt');
+
+			console.log(chalk.blue('Starting create anime...'));
+
+			const episode = await EpisodeModel.create(
+				[
+					{
+						...data,
+						video: videoPath,
+						previews: previewsPath,
+						download: downloadPath,
+					},
+				],
+				{ session },
+			);
+			console.log(chalk.yellow('Finished create anime...'));
+
+			await session.commitTransaction();
+			session.endSession();
+			res.json({ message: 'Succesfully Created', data: episode });
+
+			req.paths = { output: outputPath, download: downloadPath, video: videoPath, previews: previewsPath, input: inputPath };
+			next();
+		} catch (error) {
+			await CleanAfterError({ error, req, res, session });
+		}
+	},
+	processVideo,
+);
+router.delete('/episode', async (req: Request, res: Response) => {
+	try {
+		const id = req.query.id ?? req.body.id;
+
+		const episode = await EpisodeModel.findByIdAndDelete(id).populate('season', 'title').populate('anime', 'name');
+
+		const episodeDir = path.join('uploads', 'animes', episode.anime.name.split(' ').join('_'), episode.season.title.split(' ').join('_'), episode.title.split(' ').join('_'));
+
+		if (fs.existsSync(episodeDir)) {
+			fs.rmdirSync(episodeDir);
+		}
+
+		res.json({ message: 'Succesfully deleted: ' + id });
+	} catch (error) {
+		await CleanAfterError({ error, req, res });
+	}
+});
 // NOTE: EPSIDE --> --> --> --> --> --> --> --> --> --> --> --> --> --> --> -->
 
 export default router;

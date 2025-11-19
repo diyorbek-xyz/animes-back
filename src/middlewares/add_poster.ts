@@ -1,18 +1,17 @@
 import { NextFunction, Request, Response } from 'express';
-import { AnimeFiles, ProcessFiles } from '../types';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
 import chalk from 'chalk';
 
-async function addPoster(req: Request & AnimeFiles & ProcessFiles, res: Response, next: NextFunction) {
+async function addPoster(req: Request, res: Response, next: NextFunction) {
 	try {
 		console.log(chalk.blue('Poster adding...'));
-		const file = req.files?.poster?.at(0);
-		if (!file) return next();
+		const poster = req.uploads?.poster;
+		if (!poster) return next();
 
 		const newDir = path.join('uploads', 'animes', req.body.name ?? req.body.anime ?? '', req.body.season?.toString() ?? '');
-		const poster = path.join(newDir, 'poster.png');
+		const newPoster = path.join(newDir, 'poster.png');
 		fs.mkdirSync(newDir, { recursive: true });
 
 		const metadata = `<x:xmpmeta xmlns:x="adobe:ns:meta/">
@@ -28,7 +27,7 @@ async function addPoster(req: Request & AnimeFiles & ProcessFiles, res: Response
 
 		console.info(chalk.blue('Starting poster compression!'));
 
-		await sharp(file.path)
+		await sharp(poster)
 			.resize({
 				width: 854,
 				height: 480,
@@ -37,19 +36,19 @@ async function addPoster(req: Request & AnimeFiles & ProcessFiles, res: Response
 			})
 			.withXmp(metadata)
 			.toFormat('png', { compression: 'hevc', compressionLevel: 5, quality: 85, alphaQuality: 80, preset: 'drawing' })
-			.toFile(poster)
+			.toFile(newPoster)
 			.then(() => console.info(chalk.yellow('Poster compression completed!')));
 
-		fs.unlinkSync(file.path);
+		fs.unlinkSync(poster);
 
-		req.data = { poster };
+		req.data = { poster: newPoster };
 		next();
 	} catch (err) {
 		res.send(err);
 		console.log(err);
 
-		if (req.files?.poster?.at(0)?.path) {
-			fs.unlinkSync(req.files.poster[0].path);
+		if (req.uploads?.poster) {
+			fs.unlinkSync(req.uploads?.poster);
 		}
 	}
 }
