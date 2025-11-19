@@ -5,19 +5,17 @@ import LoginModel from '../models/login';
 const router = Router();
 
 router.get('/animes', async (req: Request, res: Response) => {
-	const data = await AnimeModel.find()
-		.populate({ path: 'seasons episodes', populate: { path: 'episodes' } })
-		.lean();
+	const data = await AnimeModel.find().lean();
 	res.render('collections/animes', { data });
 });
 
 router.get('/seasons', async (req: Request, res: Response) => {
-	const data = await SeasonModel.find().populate('anime episodes').lean();
+	const data = await SeasonModel.find().lean();
 	res.render('collections/seasons', { data });
 });
 
 router.get('/episodes', async (req: Request, res: Response) => {
-	const data = await EpisodeModel.find().populate('anime season').lean();
+	const data = await EpisodeModel.find().lean();
 	res.render('collections/episodes', { data });
 });
 

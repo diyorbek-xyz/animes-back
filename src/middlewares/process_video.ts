@@ -82,10 +82,16 @@ async function processVideo(req: Request, res: Response, next: NextFunction) {
 		return;
 	} catch (err) {
 		if (req.paths?.output && fs.existsSync(req.paths.output)) {
-			fs.rmdirSync(req.paths.output);
+			await fs.rm(req.paths.output, { recursive: true, force: true }, (err) => {
+				if (err) console.log(err);
+				else console.log(chalk.greenBright('Yeeted successfully 💨'));
+			});
 		}
 		if (req.paths?.input && fs.existsSync(req.paths.input)) {
-			fs.unlinkSync(req.paths.input);
+			await fs.rm(req.paths.input, { recursive: true, force: true }, (err) => {
+				if (err) console.log(err);
+				else console.log(chalk.greenBright('Yeeted successfully 💨'));
+			});
 		}
 		console.error(err);
 		res.json(err);

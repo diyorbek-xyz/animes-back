@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose, { models } from 'mongoose';
 
 const LoginSchema = new mongoose.Schema({
 	first_name: { type: String, required: true },
@@ -10,6 +10,6 @@ const LoginSchema = new mongoose.Schema({
 	avatar: String,
 	banner: String,
 });
-const LoginModel = mongoose.model('user', LoginSchema);
+const LoginModel = models.user || mongoose.model('user', LoginSchema);
 
 export default LoginModel;

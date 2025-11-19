@@ -32,16 +32,27 @@ router.get('/', verifyToken, async (req: Request, res: Response) => {
 	}
 });
 router.delete('/', verifyToken, async (req: Request, res: Response) => {
+	const session = await mongoose.startSession();
+	session.startTransaction();
 	try {
 		const id = req.query.id ?? req.body.id;
 
-		const data = await AnimeModel.findByIdAndDelete(id);
+		const anime = await AnimeModel.findByIdAndDelete(id, { session });
 
-		if (data.poster) fs.unlinkSync(data.poster);
+		const animeDir = path.join('uploads', 'Posters', anime.name.split(' ').join('_'));
 
+		if (fs.existsSync(animeDir)) {
+			await fs.rm(animeDir, { recursive: true, force: true }, (err) => {
+				if (err) throw new Error(err as any);
+				else console.log(chalk.greenBright('Yeeted successfully 💨'));
+			});
+		}
+
+		await session.commitTransaction();
+		session.endSession();
 		res.json({ message: 'Succesfully deleted: ' + id });
 	} catch (error) {
-		await CleanAfterError({ error, req, res });
+		await CleanAfterError({ error, req, res, session });
 	}
 });
 
@@ -97,14 +108,27 @@ router.get('/season', async (req: Request, res: Response) => {
 	}
 });
 router.delete('/season', verifyToken, async (req: Request, res: Response) => {
+	const session = await mongoose.startSession();
+	session.startTransaction();
 	try {
 		const id = req.query.id ?? req.body.id;
-		console.log(id);
 
-		await SeasonModel.findByIdAndDelete(id);
+		const season = await SeasonModel.findByIdAndDelete(id, { session });
+
+		const seasonDir = path.join('uploads', 'Posters', season.title.split(' ').join('_'));
+
+		if (fs.existsSync(seasonDir)) {
+			await fs.rm(seasonDir, { recursive: true, force: true }, (err) => {
+				if (err) throw new Error(err as any);
+				else console.log(chalk.greenBright('Yeeted successfully 💨'));
+			});
+		}
+
+		await session.commitTransaction();
+		session.endSession();
 		res.json({ message: 'Succesfully deleted: ' + id });
 	} catch (error) {
-		await CleanAfterError({ error, req, res });
+		await CleanAfterError({ error, req, res, session });
 	}
 });
 router.post('/season', upload.fields([{ name: 'poster', maxCount: 1 }]), sortFiles, addPoster, async (req: Request, res: Response, d) => {
@@ -158,9 +182,7 @@ router.post(
 			const inputPath = req.uploads?.video;
 			if (!inputPath) return console.error('Input video not found.');
 
-			const anime = await AnimeModel.findById(data.anime);
-			const season = await SeasonModel.findById(data.season);
-			const outputPath = path.join('uploads', 'animes', anime.name.split(' ').join('_'), season.title.split(' ').join('_'), data.title.split(' ').join('_'));
+			const outputPath = path.join('uploads', 'Episode_Datas', data.title.split(' ').join('_'));
 			const downloadPath = path.join(outputPath, 'download_' + req.body.episode.toString() + path.extname(inputPath));
 			const videoPath = path.join(outputPath, 'master.m3u8');
 			const previewsPath = path.join(outputPath, 'sprite.vtt');
@@ -192,21 +214,28 @@ router.post(
 	},
 	processVideo,
 );
-router.delete('/episode', async (req: Request, res: Response) => {
+router.delete('/episode', verifyToken, async (req: Request, res: Response) => {
+	const session = await mongoose.startSession();
+	session.startTransaction();
 	try {
 		const id = req.query.id ?? req.body.id;
 
-		const episode = await EpisodeModel.findByIdAndDelete(id).populate('season', 'title').populate('anime', 'name');
+		const episode = await EpisodeModel.findByIdAndDelete(id);
 
-		const episodeDir = path.join('uploads', 'animes', episode.anime.name.split(' ').join('_'), episode.season.title.split(' ').join('_'), episode.title.split(' ').join('_'));
+		const episodeDir = path.join('uploads', 'Episode_Datas', episode.title.split(' ').join('_'));
 
 		if (fs.existsSync(episodeDir)) {
-			fs.rmdirSync(episodeDir);
+			await fs.rm(episodeDir, { recursive: true, force: true }, (err) => {
+				if (err) throw new Error(err as any);
+				else console.log(chalk.greenBright('Yeeted successfully 💨'));
+			});
 		}
 
+		await session.commitTransaction();
+		session.endSession();
 		res.json({ message: 'Succesfully deleted: ' + id });
 	} catch (error) {
-		await CleanAfterError({ error, req, res });
+		await CleanAfterError({ error, req, res, session });
 	}
 });
 // NOTE: EPSIDE --> --> --> --> --> --> --> --> --> --> --> --> --> --> --> -->

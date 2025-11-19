@@ -1,16 +1,17 @@
-<form id='dashboard' action='/account?_method=PUT' enctype="multipart/form-data" method='put'>
-	<img class='avatar' src={{account.avatar}} height="300px"/>
+<form id='dashboard' action='/account?id={{account._id}}&_method=PUT' enctype='multipart/form-data' method='post'>
+	<img class='avatar' src={{account.avatar}} height='300px' />
 	<img class='banner' src={{account.banner}} />
 	<div>
-		<label>AvatarD: <input type='file' name='avatar' value={{account.avatar}} /></label>
+		<label>Avatar: <input type='file' name='avatar' value={{account.avatar}} /></label>
 		<label>Banner: <input type='file' name='banner' value={{account.banner}} /></label>
 		<label>Username: <input type='text' name='username' value={{account.username}} /></label>
 		<label>First name: <input type='text' name='first_name' value={{account.first_name}} /></label>
 		<label>Last name: <input type='text' name='last_name' value={{account.last_name}} /></label>
 		<div style='display: flex; gap: 10px;'>
-			<a class='link'>
-				<button href='/logout'>Log Out</button>
-			</a>
+			<form action='/account?id={{account._id}}&_method=DELETE' method='get'>
+				<input type='submit' value='Delete' />
+			</form>
+			<a href="/account?id={{account._id}}&_method=DELETE">Delete</a>
 			<input type='submit' value='Save' />
 		</div>
 	</div>

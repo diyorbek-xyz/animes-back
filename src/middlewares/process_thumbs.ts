@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import fs from 'fs-extra';
 import path from 'path';
 
-// ------------------- Step 4: Run everything -------------------
+// ------------------------ Run everything -------------------
 export default async function processPreviews(inputVideo: string, outputDir: string) {
 	const framesDir = path.join(outputDir, 'frames');
 	const spriteWidth = 160;
@@ -64,6 +64,7 @@ export default async function processPreviews(inputVideo: string, outputDir: str
 			const startTime = new Date(startSec * 1000).toISOString().substr(11, 12);
 			const endTime = new Date(endSec * 1000).toISOString().substr(11, 12);
 
+			vtt += `${i}\n`;
 			vtt += `${startTime} --> ${endTime}\n`;
 			vtt += `sprite.jpg#xywh=${x},${y},${spriteWidth},${spriteHeight}\n\n`;
 		}

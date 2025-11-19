@@ -9,23 +9,11 @@ import { verifyToken, permit } from '../middlewares/verify_access';
 import LoginModel from '../models/login';
 import { response } from '../utils/response';
 import sortFiles from '../middlewares/sort_files';
+import chalk from 'chalk';
+import mongoose from 'mongoose';
 
 const SECRET = process.env.SECRET ?? '5588';
 const auth = Router();
-
-auth.get('/accounts', verifyToken, permit('admin', 'creator'), async (req: Request, res: Response) => {
-	try {
-		if (req.query.id) {
-			const data = await LoginModel.findById(req.query.id).select('-password -__v').lean();
-			response({ req, res, render: 'users/account', name: 'account', data: data });
-		} else {
-			const data = await LoginModel.find().lean();
-			response({ req, res, render: 'users/accounts', name: 'accounts', data: data });
-		}
-	} catch (err) {
-		res.status(404).json({ message: 'Error', err });
-	}
-});
 
 auth.get('/signup', (req: Request, res: Response) => res.render('users/signup', { layout: 'login' }));
 auth.get('/login', (req: Request, res: Response) => res.render('users/login', { layout: 'login' }));
@@ -67,6 +55,19 @@ auth.get('/logout', (req: Request, res: Response) => {
 	res.clearCookie('token');
 	response({ redirect: '/login', req, res });
 });
+auth.get('/accounts', verifyToken, permit('admin', 'creator'), async (req: Request, res: Response) => {
+	try {
+		if (req.query.id) {
+			const data = await LoginModel.findById(req.query.id).select('-password -__v').lean();
+			response({ req, res, render: 'users/account', name: 'account', data: data });
+		} else {
+			const data = await LoginModel.find().lean();
+			response({ req, res, render: 'users/accounts', name: 'accounts', data: data });
+		}
+	} catch (err) {
+		res.status(404).json({ message: 'Error', err });
+	}
+});
 
 auth.get('/account', verifyToken, async (req: Request, res: Response) => {
 	const user = await LoginModel.findById(req.user?.id).select('-password -__v -role -_id').lean();
@@ -89,6 +90,7 @@ auth.put(
 		const newDir = path.join('uploads', 'users', props.username);
 		const newBanner = banner && path.join(newDir, 'banner.png');
 		const newAvatar = avatar && path.join(newDir, 'avatar.png');
+		console.log('ffffff');
 
 		fs.mkdirSync(newDir, { recursive: true });
 
@@ -118,18 +120,33 @@ auth.put(
 );
 
 auth.delete('/account', verifyToken, permit('admin', 'creator'), async (req: Request, res: Response) => {
+	const session = await mongoose.startSession();
+	session.startTransaction();
 	try {
 		if (req.query.id !== req.user?.id) {
-			const data = await LoginModel.findById(req.query.id);
+			const account = await LoginModel.findByIdAndDelete(req.query.id, { session });
+			console.log(account);
+			
+			const accountDir = path.join('uploads', 'users', account.username);
 
-			if (data?.avatar) fs.unlinkSync(data.avatar);
-			if (data?.banner) fs.unlinkSync(data.banner);
+			if (fs.existsSync(accountDir)) {
+				await fs.rm(accountDir, { recursive: true, force: true }, (err) => {
+					if (err) throw new Error(err as any);
+					else console.log(chalk.greenBright('Yeeted successfully 💨'));
+				});
+			}
 
-			await LoginModel.findByIdAndDelete(req.query.id);
+			await session.commitTransaction();
+			session.endSession();
 			return response({ req, res, redirect: '/accounts' });
 		}
+
+		await session.abortTransaction();
+		session.endSession();
 		return response({ req, res, data: { message: 'You can not delete yourself' }, redirect: '/accounts' });
 	} catch (err) {
+		await session.abortTransaction();
+		session.endSession();
 		res.status(404).json({ message: 'Error', err });
 	}
 });

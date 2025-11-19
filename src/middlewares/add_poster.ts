@@ -10,7 +10,7 @@ async function addPoster(req: Request, res: Response, next: NextFunction) {
 		const poster = req.uploads?.poster;
 		if (!poster) return next();
 
-		const newDir = path.join('uploads', 'animes', req.body.name ?? req.body.anime ?? '', req.body.season?.toString() ?? '');
+		const newDir = path.join('uploads', 'Posters', req.body.name?.split(' ').join('_') ?? req.body.title?.split(' ').join('_') ?? '');
 		const newPoster = path.join(newDir, 'poster.png');
 		fs.mkdirSync(newDir, { recursive: true });
 
