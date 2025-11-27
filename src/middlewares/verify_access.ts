@@ -8,6 +8,7 @@ const SECRET = process.env.SECRET ?? '5588';
 
 const verifyToken = async (req: Request, res: Response, next: Function) => {
 	const token = req.cookies.token ?? req.headers.authorization?.split(' ')[1];
+	
 	if (!token) return response({ req, res, data: 'Token required', redirect: '/login' });
 
 	try {

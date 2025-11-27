@@ -7,11 +7,11 @@ import mongoose from 'mongoose';
 import methodOverride from 'method-override';
 import express from 'express';
 import { create } from 'express-handlebars';
-import dotenv from 'dotenv';
 import anime from './src/routes/anime';
 import auth from './src/routes/auth';
 import collections from './src/routes/collections';
 import formatDate from './src/utils/formatDate';
+import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
@@ -25,10 +25,10 @@ const hbs = create({
 	},
 });
 
-const PORT = Number(process.env.PORT) ?? 3000;
+const PORT = Number(process.env.PORT) ?? 5588;
 const MONGO_URL = process.env.MONGO_URL ?? '';
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(methodOverride('_method'));

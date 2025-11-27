@@ -11,20 +11,21 @@ import { response } from '../utils/response';
 import sortFiles from '../middlewares/sort_files';
 import chalk from 'chalk';
 import mongoose from 'mongoose';
+import HttpError from '../utils/error';
 
 const SECRET = process.env.SECRET ?? '5588';
 const auth = Router();
 
-auth.get('/signup', (req: Request, res: Response) => res.render('users/signup', { layout: 'login' }));
-auth.get('/login', (req: Request, res: Response) => res.render('users/login', { layout: 'login' }));
+auth.get('/auth/signup', (req: Request, res: Response) => res.render('users/signup', { layout: 'login' }));
+auth.get('/auth/login', (req: Request, res: Response) => res.render('users/login', { layout: 'login' }));
 
-auth.post('/signup', async (req: Request, res: Response) => {
-	const { username, password, role, first_name, last_name } = req.body;
+auth.post('/auth/signup', async (req: Request, res: Response) => {
+	const { username, password, role, firstname, lastname } = req.body;
 	const hashed = await bcrypt.hash(password, 10);
 	const exist = await LoginModel.findOne({ username: username.toLowerCase() });
 
 	if (!exist) {
-		const user = await LoginModel.create({ username: username.toLowerCase(), password: hashed, role, first_name, last_name });
+		const user = await LoginModel.create({ username: username.toLowerCase(), password: hashed, role, firstname, lastname });
 
 		if (req.query.create) {
 			response({ redirect: '/accounts', req, res, data: user });
@@ -37,7 +38,8 @@ auth.post('/signup', async (req: Request, res: Response) => {
 		res.status(409).json({ message: 'This username already taken' }).redirect('/signup');
 	}
 });
-auth.post('/login', async (req: Request, res: Response) => {
+
+auth.post('/auth/login', async (req: Request, res: Response) => {
 	const { username, password } = req.body;
 	const user = await LoginModel.findOne({ username: username.toLowerCase() });
 	if (!user) return res.status(404).json({ message: 'User Not Found' });
@@ -51,10 +53,11 @@ auth.post('/login', async (req: Request, res: Response) => {
 	response({ redirect: '/account', req, res, data: { token, user } });
 });
 
-auth.get('/logout', (req: Request, res: Response) => {
+auth.get('/auth/logout', (req: Request, res: Response) => {
 	res.clearCookie('token');
 	response({ redirect: '/login', req, res });
 });
+
 auth.get('/accounts', verifyToken, permit('admin', 'creator'), async (req: Request, res: Response) => {
 	try {
 		if (req.query.id) {
@@ -71,7 +74,6 @@ auth.get('/accounts', verifyToken, permit('admin', 'creator'), async (req: Reque
 
 auth.get('/account', verifyToken, async (req: Request, res: Response) => {
 	const user = await LoginModel.findById(req.user?.id).select('-password -__v -role -_id').lean();
-
 	response({ req, res, render: 'users/dashboard', data: user, name: 'dashboard' });
 });
 
@@ -116,9 +118,8 @@ auth.put(
 
 		response({ req, res, data: user, redirect: `/accounts?id=${id}` });
 		if (!user) return res.status(404).json({ message: 'User Not Found' });
-	},
+	}
 );
-
 auth.delete('/account', verifyToken, permit('admin', 'creator'), async (req: Request, res: Response) => {
 	const session = await mongoose.startSession();
 	session.startTransaction();
@@ -126,7 +127,7 @@ auth.delete('/account', verifyToken, permit('admin', 'creator'), async (req: Req
 		if (req.query.id !== req.user?.id) {
 			const account = await LoginModel.findByIdAndDelete(req.query.id, { session });
 			console.log(account);
-			
+
 			const accountDir = path.join('uploads', 'users', account.username);
 
 			if (fs.existsSync(accountDir)) {
@@ -148,6 +149,22 @@ auth.delete('/account', verifyToken, permit('admin', 'creator'), async (req: Req
 		await session.abortTransaction();
 		session.endSession();
 		res.status(404).json({ message: 'Error', err });
+	}
+});
+
+auth.post('/auth/check/username', async (req: Request, res: Response) => {
+	try {
+		const body = await req.body;
+		const exist = await LoginModel.findOne({ username: body.username });
+		if (exist) return res.json({ message: 'This username is not available', available: false });
+
+		const type = /^[a-zA-Z0-9._]+$/.test(body.username);
+
+		if (!type) return res.json({ message: 'Username can only contain letters, numbers, dots, and underscores.', available: false });
+		return res.json({ message: 'This username is available', available: true });
+	} catch (error) {
+		console.error(error);
+		return res.json({ message: error });
 	}
 });
 export default auth;
