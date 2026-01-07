@@ -7,11 +7,10 @@ import mongoose from 'mongoose';
 import methodOverride from 'method-override';
 import express from 'express';
 import { create } from 'express-handlebars';
-import anime from './src/routes/anime';
-import auth from './src/routes/auth';
-import collections from './src/routes/collections';
-import formatDate from './src/utils/formatDate';
 import dotenv from 'dotenv';
+import { formatDate } from './src/utils/formatDate';
+import { routes } from './src/routes';
+
 dotenv.config();
 
 const app = express();
@@ -40,18 +39,11 @@ app.set('views', './views');
 
 app.get('/', (req: Request, res: Response) => res.render('index'));
 
-app.use('/', auth);
-app.use('/collection/', collections);
-app.use('/api/anime/', anime);
-app.use(
-	'/uploads',
-	express.static('uploads', {
-		setHeaders: (res: Response, path: any) => {
-			if (path.endsWith('.vtt')) res.setHeader('Content-Type', 'text/vtt');
-		},
-	})
-);
+app.use('/uploads', express.static('uploads'));
 app.use(express.static(path.join(process.cwd(), 'public')));
+
+app.use('/', routes);
+
 mongoose
 	.connect(MONGO_URL)
 	.then(() => {

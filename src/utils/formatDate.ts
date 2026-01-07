@@ -6,6 +6,7 @@ const formater = new Intl.DateTimeFormat('en-US', {
 	day: '2-digit',
 });
 
-export default function formatDate(date: Date) {
+function formatDate(date: Date) {
 	return formater.format(date);
 }
+export { formatDate };
